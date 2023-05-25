@@ -1,0 +1,148 @@
+-----------------------mysql-----------------------
+------------User:
+ DELETE FROM user_collect WHERE collect_type = 2 OR collect_type = 3
+
+
+ 视图：
+   CREATE VIEW `user_card_view` AS SELECT
+`ui`.`id` AS `user_id`,
+`cr`.`card_id` AS `card_id`,
+`cr`.`receive_card_status` AS `receive_card_status` 
+FROM
+	(
+		`prod-mecha-user`.`user_info` `ui`
+		LEFT JOIN `prod-mecha-coupon`.`card_receive` `cr` ON ((
+				`cr`.`user_id` = `ui`.`id` 
+			))) 
+WHERE
+	((
+			`ui`.`is_delete` = 0 
+			) 
+		AND ((
+				`ui`.`is_import` = 0 
+				) 
+			OR ((
+					`ui`.`is_import` = 1 
+					) 
+			AND ( `ui`.`is_activation` = 0 ))) 
+	AND ( `cr`.`is_delete` = 0 ));
+  CREATE VIEW `user_order_view` AS SELECT
+`ui`.`id` AS `user_id`,
+`oi`.`order_no` AS `order_no`,
+`oi`.`pay_status` AS `pay_status`,
+`oi`.`refund_scene` AS `refund_scene`,
+`oi`.`total_need_price` AS `total_need_price`,
+`oi`.`pay_time` AS `pay_time` 
+FROM
+	(
+		`prod-mecha-user`.`user_info` `ui`
+		LEFT JOIN `prod-mecha-shop`.`order_info` `oi` ON ((
+				`oi`.`user_id` = `ui`.`id` 
+			))) 
+WHERE
+	((
+			`ui`.`is_delete` = 0 
+			) 
+		AND ((
+				`ui`.`is_import` = 0 
+				) 
+			OR ((
+					`ui`.`is_import` = 1 
+					) 
+			AND ( `ui`.`is_activation` = 0 ))) 
+	AND ( `oi`.`is_delete` = 0 ) 
+	AND ( `oi`.`total_need_price` > 0 ));
+
+ CREATE VIEW `user_serve_order_view` AS SELECT
+`ui`.`id` AS `user_id`,
+`so`.`order_no` AS `order_no`,
+`so`.`is_pay` AS `is_pay`,
+`so`.`reality_amount` AS `reality_amount`,
+`so`.`pay_time` AS `pay_time`,
+`so`.`order_status` AS `order_status`,
+`so`.`created_time` AS `created_time`,
+`so`.`store_id` AS `store_id`,
+`so`.`serve_type` AS `serve_type` 
+FROM
+	(
+		`prod-mecha-user`.`user_info` `ui`
+		LEFT JOIN `prod-mecha-shop`.`serve_order` `so` ON ((
+				`ui`.`id` = `so`.`user_id` 
+			))) 
+WHERE
+	((
+			`ui`.`is_delete` = 0 
+			) 
+		AND ((
+				`ui`.`is_import` = 0 
+				) 
+			OR ((
+					`ui`.`is_import` = 1 
+					) 
+			AND ( `ui`.`is_activation` = 0 ))) 
+	AND ( `so`.`is_delete` = 0 ) 
+	AND ( `so`.`reality_amount` > 0 ));
+
+
+
+-----------Goods:
+视图：
+	CREATE VIEW `serve_order_model_view` AS SELECT
+`so`.`user_id` AS `user_id`,
+`som`.`model_id` AS `model_id`,
+sum(
+	IF
+	(( `so`.`serve_type` = 20 ), 1, 0 )) AS `keepNum`,
+	sum(
+	IF
+	(( `so`.`serve_type` = 30 ), 1, 0 )) AS `repairNum`,
+	sum(
+	IF
+	(( `so`.`serve_type` = 40 ), 1, 0 )) AS `replaceNum` 
+FROM
+	(
+		`prod-mecha-shop`.`serve_order` `so`
+		JOIN `prod-mecha-shop`.`serve_order_model` `som` ON ((
+				`so`.`order_no` = `som`.`order_no` 
+			))) 
+WHERE
+	( `so`.`is_pay` = 1 ) 
+GROUP BY
+	`som`.`model_id`,
+	`so`.`user_id`;
+
+	CREATE VIEW `serve_order_view` AS SELECT
+`so`.`store_id` AS `store_id`,
+`so`.`serve_type` AS `serve_type`,
+sum( `so`.`reality_amount` ) AS `reality_amount`,
+count( 1 ) AS `order_num` 
+FROM
+	`prod-mecha-shop`.`serve_order` `so` 
+WHERE
+	((
+			`so`.`is_delete` = 0 
+			) 
+	AND ( `so`.`is_pay` = 1 )) 
+GROUP BY
+	`so`.`store_id`,
+	`so`.`serve_type`;
+	CREATE VIEW `serve_sales_user_view` AS SELECT DISTINCT
+`so`.`user_id` AS `user_id`,
+`sod`.`biz_type` AS `serve_type`,
+`sod`.`biz_id` AS `serve_id` 
+FROM
+	(
+		`prod-mecha-shop`.`serve_order` `so`
+		JOIN `prod-mecha-shop`.`serve_order_detail` `sod` ON ((
+				`so`.`order_no` = `sod`.`order_no` 
+			))) 
+WHERE
+	((
+			`so`.`is_delete` = 0 
+			) 
+		AND ( `sod`.`is_delete` = 0 ) 
+	AND ( `so`.`is_pay` = 1 )) 
+GROUP BY
+	`so`.`serve_type`,
+	`sod`.`biz_id`;
+ 
